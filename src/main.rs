@@ -13,7 +13,9 @@ fn main() {
         .add_resource(assets::Materials::default())
         .add_startup_system(assets::init_materials.system())
         .add_startup_system(systems::startup.system())
+        .add_system(systems::control_snake.system())
         .add_system(systems::move_snake.system())
+        .add_system(systems::move_transform.system())
         .add_plugins(DefaultPlugins)
         .run();
 }
