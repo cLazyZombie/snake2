@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use snake2::{assets, systems};
 
 fn pre_update() {
-    println!("-----------------------------------------------------------------");
+    //println!("-----------------------------------------------------------------");
 }
 
 fn main() {
@@ -17,13 +17,9 @@ fn main() {
         .add_resource(assets::Materials::default())
         .add_startup_system(assets::init_materials.system())
         .add_startup_system(systems::startup.system())
-        .add_event::<systems::SpawnSnakeBodyEvent>()
-        .add_event::<systems::MoveSnakeElementEvent>()
         .add_system_to_stage(stage::PRE_UPDATE, pre_update.system())
         .add_system(systems::control_snake.system())
         .add_system(systems::move_snake.system())
-        .add_system(systems::handle_spawn_snake_body.system())
-        .add_system(systems::handle_move_snake_element.system())
         .add_plugins(DefaultPlugins)
         //.add_stage_after(stage::UPDATE, "body_update")
         .add_system_to_stage(stage::POST_UPDATE, systems::move_transform.system())
