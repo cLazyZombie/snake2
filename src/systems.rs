@@ -45,40 +45,26 @@ pub struct Position {
 
 pub struct SnakeBody;
 
+fn create_snake_body(commands: &mut Commands, mat: Handle<ColorMaterial>) -> Entity {
+    commands
+        .spawn(SpriteComponents {
+            material: mat,
+            sprite: Sprite::new(Vec2::new(40.0, 40.0)),
+            ..Default::default()
+        })
+        .with(SnakeBody)
+        .current_entity()
+        .unwrap()
+}
+
 pub fn startup(mut commands: Commands, mat: Res<assets::Materials>) {
     commands.spawn(Camera2dComponents::default());
 
     // create body
-    let head = commands
-        .spawn(SpriteComponents {
-            material: mat.head_material.clone(),
-            sprite: Sprite::new(Vec2::new(40.0, 40.0)),
-            ..Default::default()
-        })
-        .with(SnakeBody)
-        .current_entity()
-        .unwrap();
-
-    let body1 = commands
-        .spawn(SpriteComponents {
-            material: mat.body_material.clone(),
-            sprite: Sprite::new(Vec2::new(40.0, 40.0)),
-            ..Default::default()
-        })
-        .with(SnakeBody)
-        .current_entity()
-        .unwrap();
-
-    let body2 = commands
-        .spawn(SpriteComponents {
-            material: mat.body_material.clone(),
-            sprite: Sprite::new(Vec2::new(40.0, 40.0)),
-            ..Default::default()
-        })
-        .with(SnakeBody)
-        .current_entity()
-        .unwrap();
-
+    let head = create_snake_body(&mut commands, mat.head_material.clone());
+    let middle = create_snake_body(&mut commands, mat.body_material.clone());
+    let tail = create_snake_body(&mut commands, mat.body_material.clone());
+    
     commands
         .spawn((Snake { dir: Direction::Up },))
         .with(SnakeElements {
@@ -88,11 +74,11 @@ pub fn startup(mut commands: Commands, mat: Res<assets::Materials>) {
                     pos: Position { x: 8, y: 8 },
                 },
                 SnakeElement {
-                    entity: body1,
+                    entity: middle,
                     pos: Position { x: 8, y: 7 },
                 },
                 SnakeElement {
-                    entity: body2,
+                    entity: tail,
                     pos: Position { x: 8, y: 6 },
                 },
             ],
