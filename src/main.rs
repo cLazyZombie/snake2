@@ -21,8 +21,8 @@ fn main() {
         .add_system(systems::control_snake.system())
         .add_system(systems::move_snake.system())
         .add_plugins(DefaultPlugins)
-        //.add_stage_after(stage::UPDATE, "body_update")
-        .add_system_to_stage(stage::POST_UPDATE, systems::move_food_transform.system())
-        .add_system_to_stage(stage::POST_UPDATE, systems::move_snake_transform.system())
+        .add_stage_after(stage::UPDATE, systems::BODY_UPDATE)
+        .add_system_to_stage(systems::BODY_UPDATE, systems::move_food_transform.system())
+        .add_system_to_stage(systems::BODY_UPDATE, systems::move_snake_transform.system())
         .run();
 }

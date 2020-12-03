@@ -4,6 +4,8 @@ use bevy::prelude::*;
 const WORLD_GRID_WIDTH: i32 = 16;
 const WORLD_GRID_HEIGHT: i32 = 16;
 
+pub const BODY_UPDATE : &str = "body_update";
+
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Direction {
     Left,
