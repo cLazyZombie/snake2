@@ -1,10 +1,11 @@
 use crate::assets;
 use bevy::prelude::*;
+use rand::{thread_rng, Rng};
 
 const WORLD_GRID_WIDTH: i32 = 16;
 const WORLD_GRID_HEIGHT: i32 = 16;
 
-pub const BODY_UPDATE : &str = "body_update";
+pub const BODY_UPDATE: &str = "body_update";
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Direction {
@@ -60,7 +61,7 @@ fn create_snake_body(commands: &mut Commands, mat: Handle<ColorMaterial>) -> Ent
 
 fn create_food(commands: &mut Commands, mat: Handle<ColorMaterial>, pos: Position) -> Entity {
     commands
-        .spawn( SpriteComponents {
+        .spawn(SpriteComponents {
             material: mat,
             sprite: Sprite::new(Vec2::new(30.0, 30.0)),
             ..Default::default()
@@ -78,46 +79,32 @@ pub fn startup(mut commands: Commands, mat: Res<assets::Materials>) {
     let head = create_snake_body(&mut commands, mat.head_material.clone());
     let middle = create_snake_body(&mut commands, mat.body_material.clone());
     let tail = create_snake_body(&mut commands, mat.body_material.clone());
-    
+
     commands
-        .spawn((
-            Snake { 
-                dir: Direction::Up,
-                elements: vec![
-                        SnakeElement {
-                            entity: head,
-                            pos: Position { x: 8, y: 8 },
-                        },
-                        SnakeElement {
-                            entity: middle,
-                            pos: Position { x: 8, y: 7 },
-                        },
-                        SnakeElement {
-                            entity: tail,
-                            pos: Position { x: 8, y: 6 },
-                        },
-                ],
-            },)
-        )
-        // .with(SnakeElements {
-        //     elements: vec![
-        //         SnakeElement {
-        //             entity: head,
-        //             pos: Position { x: 8, y: 8 },
-        //         },
-        //         SnakeElement {
-        //             entity: middle,
-        //             pos: Position { x: 8, y: 7 },
-        //         },
-        //         SnakeElement {
-        //             entity: tail,
-        //             pos: Position { x: 8, y: 6 },
-        //         },
-        //     ],
-        //})
+        .spawn((Snake {
+            dir: Direction::Up,
+            elements: vec![
+                SnakeElement {
+                    entity: head,
+                    pos: Position { x: 8, y: 8 },
+                },
+                SnakeElement {
+                    entity: middle,
+                    pos: Position { x: 8, y: 7 },
+                },
+                SnakeElement {
+                    entity: tail,
+                    pos: Position { x: 8, y: 6 },
+                },
+            ],
+        },))
         .with(Timer::from_seconds(0.2, true));
 
-    create_food(&mut commands, mat.food_material.clone(), Position{x: 2, y: 2});
+    create_food(
+        &mut commands,
+        mat.food_material.clone(),
+        Position { x: 2, y: 2 },
+    );
 }
 
 pub fn control_snake(input: Res<Input<KeyCode>>, mut query: Query<&mut Snake>) {
@@ -216,7 +203,35 @@ pub fn move_snake(
             snake.elements.push(new_tail);
 
             commands.despawn(food_entity);
+
+            random_create_food(&*snake, mat.food_material.clone(), &mut commands);
         }
+    }
+}
+
+fn random_create_food(snake: &Snake, food_mat: Handle<ColorMaterial>, commands: &mut Commands) {
+    let mut rng = thread_rng();
+
+    let food_pos;
+
+    loop {
+        let x = rng.gen_range(0, WORLD_GRID_WIDTH - 1);
+        let y = rng.gen_range(0, WORLD_GRID_HEIGHT - 1);
+
+        let pos = Position { x, y };
+
+        for snake_elem in &snake.elements {
+            if snake_elem.pos == pos {
+                continue;
+            }
+        }
+
+        food_pos = Some(pos);
+        break;
+    }
+
+    if let Some(food) = food_pos {
+        create_food(commands, food_mat, food);
     }
 }
 
