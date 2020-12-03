@@ -138,10 +138,10 @@ pub fn move_snake(
     mut commands: Commands,
     mat: Res<assets::Materials>,
     mut events: ResMut<Events<GameOverEvent>>,
-    mut q: Query<(&mut Snake, &Timer)>,
+    mut q: Query<(&mut Snake, &mut Timer)>,
     food_query: Query<(Entity, &Food, &Position)>,
 ) {
-    for (mut snake, timer) in q.iter_mut() {
+    for (mut snake, mut timer) in q.iter_mut() {
         if timer.finished == false {
             continue;
         }
@@ -220,6 +220,9 @@ pub fn move_snake(
             commands.despawn(food_entity);
 
             random_create_food(&*snake, mat.food_material.clone(), &mut commands);
+
+            // speed up
+            timer.duration = timer.duration * 0.95;
         }
 
         // check gameover
@@ -241,15 +244,19 @@ fn random_create_food(snake: &Snake, food_mat: Handle<ColorMaterial>, commands: 
         let y = rng.gen_range(0, WORLD_GRID_HEIGHT - 1);
 
         let pos = Position { x, y };
+        let mut pos_valid = true;
 
         for snake_elem in &snake.elements {
             if snake_elem.pos == pos {
-                continue;
+                pos_valid = false;
+                break;
             }
         }
 
-        food_pos = Some(pos);
-        break;
+        if pos_valid {
+            food_pos = Some(pos);
+            break;
+        }
     }
 
     if let Some(food) = food_pos {
