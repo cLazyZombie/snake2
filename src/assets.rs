@@ -4,6 +4,7 @@ use bevy::prelude::*;
 pub struct Materials {
     pub head_material: Handle<ColorMaterial>,
     pub body_material: Handle<ColorMaterial>,
+    pub food_material: Handle<ColorMaterial>,
 }
 
 pub fn init_materials(
@@ -15,4 +16,7 @@ pub fn init_materials(
 
     let body_mat = color_mat_res.add(ColorMaterial::color(Color::rgb(0.1, 0.2, 0.4)));
     mat_assets.body_material = body_mat;
+
+    let food_mat = color_mat_res.add(ColorMaterial::color(Color::rgb(0.8, 0.2, 0.1)));
+    mat_assets.food_material = food_mat;
 }

@@ -23,9 +23,15 @@ impl Direction {
     }
 }
 
+// TODO
+// Snake + SnakeElement 합치기
+// pos -> 실제 transform 구하는 함수 코드 중복 삭제
+
 pub struct Snake {
     pub dir: Direction,
 }
+
+pub struct Food;
 
 #[derive(Copy, Clone)]
 pub struct SnakeElement {
@@ -57,6 +63,19 @@ fn create_snake_body(commands: &mut Commands, mat: Handle<ColorMaterial>) -> Ent
         .unwrap()
 }
 
+fn create_food(commands: &mut Commands, mat: Handle<ColorMaterial>, pos: Position) -> Entity {
+    commands
+        .spawn( SpriteComponents {
+            material: mat,
+            sprite: Sprite::new(Vec2::new(30.0, 30.0)),
+            ..Default::default()
+        })
+        .with(Food)
+        .with(pos)
+        .current_entity()
+        .unwrap()
+}
+
 pub fn startup(mut commands: Commands, mat: Res<assets::Materials>) {
     commands.spawn(Camera2dComponents::default());
 
@@ -84,6 +103,8 @@ pub fn startup(mut commands: Commands, mat: Res<assets::Materials>) {
             ],
         })
         .with(Timer::from_seconds(0.2, true));
+
+    create_food(&mut commands, mat.food_material.clone(), Position{x: 2, y: 2});
 }
 
 pub fn control_snake(input: Res<Input<KeyCode>>, mut query: Query<&mut Snake>) {
@@ -108,7 +129,12 @@ pub fn control_snake(input: Res<Input<KeyCode>>, mut query: Query<&mut Snake>) {
     }
 }
 
-pub fn move_snake(mut q: Query<(&Snake, &mut SnakeElements, &Timer)>) {
+pub fn move_snake(
+    mut commands: Commands,
+    mat: Res<assets::Materials>,
+    mut q: Query<(&Snake, &mut SnakeElements, &Timer)>,
+    food_query: Query<(Entity, &Food, &Position)>,
+) {
     for (snake, mut elements, timer) in q.iter_mut() {
         if timer.finished == false {
             continue;
@@ -139,6 +165,17 @@ pub fn move_snake(mut q: Query<(&Snake, &mut SnakeElements, &Timer)>) {
             head_pos.y = 0;
         }
 
+        // 새로운 head 위치에 food 얻어오기
+        let mut food_entity: Option<Entity> = None;
+        for (entity, _, pos) in food_query.iter() {
+            if *pos == head_pos {
+                food_entity = Some(entity);
+                break;
+            }
+        }
+
+        let tail_pos = elements.elements.last().unwrap().pos;
+
         let mut next_positions = Vec::new();
         next_positions.push(head_pos);
 
@@ -156,10 +193,21 @@ pub fn move_snake(mut q: Query<(&Snake, &mut SnakeElements, &Timer)>) {
             .for_each(|(index, elem)| {
                 elem.pos = next_positions[index];
             });
+
+        if let Some(food_entity) = food_entity {
+            let tail_entity = create_snake_body(&mut commands, mat.body_material.clone());
+            let new_tail = SnakeElement {
+                entity: tail_entity,
+                pos: tail_pos,
+            };
+            elements.elements.push(new_tail);
+
+            commands.despawn(food_entity);
+        }
     }
 }
 
-pub fn move_transform(
+pub fn move_snake_transform(
     windows: Res<Windows>,
     snake_query: Query<&SnakeElements>,
     mut query: Query<&mut Transform>,
@@ -182,6 +230,27 @@ pub fn move_transform(
                     *transform.translation.y_mut() = y as f32;
                 }
             }
+        }
+    }
+}
+
+pub fn move_food_transform(
+    windows: Res<Windows>,
+    mut query: Query<(&Food, &Position, &mut Transform)>,
+) {
+    if let Some(window) = windows.get_primary() {
+        let window_width = window.width() as i32;
+        let window_height = window.height() as i32;
+
+        let cell_size_x = window_width / WORLD_GRID_WIDTH;
+        let cell_size_y = window_height as i32 / WORLD_GRID_HEIGHT;
+
+        for (_, pos, mut transform) in query.iter_mut() {
+            let x = (pos.x * cell_size_x) - (window_width / 2) + (cell_size_x / 2);
+            let y = (pos.y * cell_size_y) - (window_height / 2) + (cell_size_y / 2);
+
+            *transform.translation.x_mut() = x as f32;
+            *transform.translation.y_mut() = y as f32;
         }
     }
 }
