@@ -26,8 +26,11 @@ impl Direction {
     }
 }
 
+pub struct GameOverEvent;
+
 pub struct Snake {
     pub dir: Direction,
+    pub input_dir: Option<Direction>,
     pub elements: Vec<SnakeElement>,
 }
 
@@ -72,17 +75,15 @@ fn create_food(commands: &mut Commands, mat: Handle<ColorMaterial>, pos: Positio
         .unwrap()
 }
 
-pub fn startup(mut commands: Commands, mat: Res<assets::Materials>) {
-    commands.spawn(Camera2dComponents::default());
-
-    // create body
-    let head = create_snake_body(&mut commands, mat.head_material.clone());
-    let middle = create_snake_body(&mut commands, mat.body_material.clone());
-    let tail = create_snake_body(&mut commands, mat.body_material.clone());
+fn init_game_entity(commands: &mut Commands, mat: &assets::Materials) {
+    let head = create_snake_body(commands, mat.head_material.clone());
+    let middle = create_snake_body(commands, mat.body_material.clone());
+    let tail = create_snake_body(commands, mat.body_material.clone());
 
     commands
         .spawn((Snake {
             dir: Direction::Up,
+            input_dir: None,
             elements: vec![
                 SnakeElement {
                     entity: head,
@@ -101,10 +102,16 @@ pub fn startup(mut commands: Commands, mat: Res<assets::Materials>) {
         .with(Timer::from_seconds(0.2, true));
 
     create_food(
-        &mut commands,
+        commands,
         mat.food_material.clone(),
         Position { x: 2, y: 2 },
     );
+}
+
+pub fn startup(mut commands: Commands, mat: Res<assets::Materials>) {
+    commands.spawn(Camera2dComponents::default());
+
+    init_game_entity(&mut commands, &mat);
 }
 
 pub fn control_snake(input: Res<Input<KeyCode>>, mut query: Query<&mut Snake>) {
@@ -122,9 +129,7 @@ pub fn control_snake(input: Res<Input<KeyCode>>, mut query: Query<&mut Snake>) {
 
     if let Some(dir) = dir {
         for mut snake in query.iter_mut() {
-            if snake.dir.is_opposite(dir) == false {
-                snake.dir = dir;
-            }
+            snake.input_dir = Some(dir);
         }
     }
 }
@@ -132,12 +137,21 @@ pub fn control_snake(input: Res<Input<KeyCode>>, mut query: Query<&mut Snake>) {
 pub fn move_snake(
     mut commands: Commands,
     mat: Res<assets::Materials>,
+    mut events: ResMut<Events<GameOverEvent>>,
     mut q: Query<(&mut Snake, &Timer)>,
     food_query: Query<(Entity, &Food, &Position)>,
 ) {
     for (mut snake, timer) in q.iter_mut() {
         if timer.finished == false {
             continue;
+        }
+
+        if let Some(input_dir) = snake.input_dir {
+            if snake.dir.is_opposite(input_dir) == false {
+                snake.dir = input_dir;
+            }
+
+            snake.input_dir = None;
         }
 
         let mut head_pos = snake.elements[0].pos;
@@ -167,8 +181,8 @@ pub fn move_snake(
 
         // 새로운 head 위치에 food 얻어오기
         let mut food_entity: Option<Entity> = None;
-        for (entity, _, pos) in food_query.iter() {
-            if *pos == head_pos {
+        for (entity, _, &pos) in food_query.iter() {
+            if pos == head_pos {
                 food_entity = Some(entity);
                 break;
             }
@@ -194,6 +208,7 @@ pub fn move_snake(
                 elem.pos = next_positions[index];
             });
 
+        // process eat food
         if let Some(food_entity) = food_entity {
             let tail_entity = create_snake_body(&mut commands, mat.body_material.clone());
             let new_tail = SnakeElement {
@@ -205,6 +220,13 @@ pub fn move_snake(
             commands.despawn(food_entity);
 
             random_create_food(&*snake, mat.food_material.clone(), &mut commands);
+        }
+
+        // check gameover
+        for elem in snake.elements.iter().skip(1) {
+            if elem.pos == head_pos {
+                events.send(GameOverEvent);
+            }
         }
     }
 }
@@ -280,5 +302,31 @@ pub fn move_food_transform(
             *transform.translation.x_mut() = x as f32;
             *transform.translation.y_mut() = y as f32;
         }
+    }
+}
+
+pub fn handle_gameover(
+    mut commands: Commands,
+    mut events: ResMut<Events<GameOverEvent>>,
+    mat: Res<assets::Materials>,
+    snake: Query<(Entity, &Snake)>,
+    foods: Query<With<Food, Entity>>,
+) {
+    for _ in events.drain() {
+        // remove snake
+        for (entity, snake) in snake.iter() {
+            for elem in &snake.elements {
+                commands.despawn_recursive(elem.entity);
+            }
+            commands.despawn_recursive(entity);
+        }
+
+        // remove food
+        for entity in foods.iter() {
+            commands.despawn_recursive(entity);
+        }
+
+        // init game
+        init_game_entity(&mut commands, &mat);
     }
 }

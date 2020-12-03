@@ -15,6 +15,7 @@ fn main() {
             ..Default::default()
         })
         .add_resource(assets::Materials::default())
+        .add_event::<systems::GameOverEvent>()
         .add_startup_system(assets::init_materials.system())
         .add_startup_system(systems::startup.system())
         .add_system_to_stage(stage::PRE_UPDATE, pre_update.system())
@@ -24,5 +25,6 @@ fn main() {
         .add_stage_after(stage::UPDATE, systems::BODY_UPDATE)
         .add_system_to_stage(systems::BODY_UPDATE, systems::move_food_transform.system())
         .add_system_to_stage(systems::BODY_UPDATE, systems::move_snake_transform.system())
+        .add_system_to_stage(stage::POST_UPDATE, systems::handle_gameover.system())
         .run();
 }
