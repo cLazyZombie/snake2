@@ -25,12 +25,9 @@ impl Direction {
     }
 }
 
-// TODO
-// Snake + SnakeElement 합치기
-// pos -> 실제 transform 구하는 함수 코드 중복 삭제
-
 pub struct Snake {
     pub dir: Direction,
+    pub elements: Vec<SnakeElement>,
 }
 
 pub struct Food;
@@ -39,10 +36,6 @@ pub struct Food;
 pub struct SnakeElement {
     pub entity: Entity,
     pub pos: Position,
-}
-
-pub struct SnakeElements {
-    pub elements: Vec<SnakeElement>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -87,23 +80,41 @@ pub fn startup(mut commands: Commands, mat: Res<assets::Materials>) {
     let tail = create_snake_body(&mut commands, mat.body_material.clone());
     
     commands
-        .spawn((Snake { dir: Direction::Up },))
-        .with(SnakeElements {
-            elements: vec![
-                SnakeElement {
-                    entity: head,
-                    pos: Position { x: 8, y: 8 },
-                },
-                SnakeElement {
-                    entity: middle,
-                    pos: Position { x: 8, y: 7 },
-                },
-                SnakeElement {
-                    entity: tail,
-                    pos: Position { x: 8, y: 6 },
-                },
-            ],
-        })
+        .spawn((
+            Snake { 
+                dir: Direction::Up,
+                elements: vec![
+                        SnakeElement {
+                            entity: head,
+                            pos: Position { x: 8, y: 8 },
+                        },
+                        SnakeElement {
+                            entity: middle,
+                            pos: Position { x: 8, y: 7 },
+                        },
+                        SnakeElement {
+                            entity: tail,
+                            pos: Position { x: 8, y: 6 },
+                        },
+                ],
+            },)
+        )
+        // .with(SnakeElements {
+        //     elements: vec![
+        //         SnakeElement {
+        //             entity: head,
+        //             pos: Position { x: 8, y: 8 },
+        //         },
+        //         SnakeElement {
+        //             entity: middle,
+        //             pos: Position { x: 8, y: 7 },
+        //         },
+        //         SnakeElement {
+        //             entity: tail,
+        //             pos: Position { x: 8, y: 6 },
+        //         },
+        //     ],
+        //})
         .with(Timer::from_seconds(0.2, true));
 
     create_food(&mut commands, mat.food_material.clone(), Position{x: 2, y: 2});
@@ -134,15 +145,15 @@ pub fn control_snake(input: Res<Input<KeyCode>>, mut query: Query<&mut Snake>) {
 pub fn move_snake(
     mut commands: Commands,
     mat: Res<assets::Materials>,
-    mut q: Query<(&Snake, &mut SnakeElements, &Timer)>,
+    mut q: Query<(&mut Snake, &Timer)>,
     food_query: Query<(Entity, &Food, &Position)>,
 ) {
-    for (snake, mut elements, timer) in q.iter_mut() {
+    for (mut snake, timer) in q.iter_mut() {
         if timer.finished == false {
             continue;
         }
 
-        let mut head_pos = elements.elements[0].pos;
+        let mut head_pos = snake.elements[0].pos;
 
         match snake.dir {
             Direction::Left => head_pos.x = head_pos.x - 1,
@@ -176,19 +187,19 @@ pub fn move_snake(
             }
         }
 
-        let tail_pos = elements.elements.last().unwrap().pos;
+        let tail_pos = snake.elements.last().unwrap().pos;
 
         let mut next_positions = Vec::new();
         next_positions.push(head_pos);
 
         // follow
-        elements
+        snake
             .elements
             .iter()
             .for_each(|elem| next_positions.push(elem.pos));
 
         // restore
-        elements
+        snake
             .elements
             .iter_mut()
             .enumerate()
@@ -202,7 +213,7 @@ pub fn move_snake(
                 entity: tail_entity,
                 pos: tail_pos,
             };
-            elements.elements.push(new_tail);
+            snake.elements.push(new_tail);
 
             commands.despawn(food_entity);
         }
@@ -211,7 +222,7 @@ pub fn move_snake(
 
 pub fn move_snake_transform(
     windows: Res<Windows>,
-    snake_query: Query<&SnakeElements>,
+    snake_query: Query<&Snake>,
     mut query: Query<&mut Transform>,
 ) {
     if let Some(window) = windows.get_primary() {
@@ -221,8 +232,8 @@ pub fn move_snake_transform(
         let cell_size_x = window_width / WORLD_GRID_WIDTH;
         let cell_size_y = window_height as i32 / WORLD_GRID_HEIGHT;
 
-        for elems in snake_query.iter() {
-            for elem in &elems.elements {
+        for snake in snake_query.iter() {
+            for elem in &snake.elements {
                 let pos = elem.pos;
                 if let Ok(mut transform) = query.get_mut(elem.entity) {
                     let x = (pos.x * cell_size_x) - (window_width / 2) + (cell_size_x / 2);
